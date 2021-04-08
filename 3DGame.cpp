@@ -50,6 +50,11 @@ int screenWidth = 800;
 int screenHeight = 600;
 float timePast = 0;
 
+//map variables
+int mapW = 0;
+int mapH = 0;
+int totalObject = 0;
+char* mapArray;
 
 //some variables for the model
 //int totalNumModel = 0;
@@ -62,7 +67,7 @@ int numVertsTeapot, numVertsKnot, numVertsCube, numVertsSphere = 0;
 //You should have a representation for the state of each object
 float objx = 0, objy = 0, objz = 0;
 float colR = 1, colG = 1, colB = 1;
-float camPosx = 3, camPosy = 0, camPosz = 0;
+float camPosx = 4, camPosy = 0, camPosz = 0;
 float camDirx = 0, camDiry = 0, camDirz = 0;
 
 
@@ -76,8 +81,8 @@ float rand01() {
 	return rand() / (float)RAND_MAX;
 }
 
-void drawGeometry(int shaderProgram);
-void drawObject(int shaderProgram, GLint uniTexID, std::string s);
+void drawMap(int shaderProgram);
+void drawObject(int shaderProgram, GLint uniTexID, char c, float Tx, float Ty, float Tz);
 
 int main(int argc, char* argv[]) {
 	SDL_Init(SDL_INIT_VIDEO);  //Initialize Graphics (for OpenGL)
@@ -105,13 +110,16 @@ int main(int argc, char* argv[]) {
 		return -1;
 	}
 
-	//Here we will load two different model files 
+	//Here we will load 4 different model files 
 
 
-	//Load Model 1
+	
 	ifstream modelFile;
-	modelFile.open("C:/Users/kevin/Desktop/OpenGLStarterCode/models/teapot.txt");
 	int numLines = 0;
+	
+	//Load Model 1
+	modelFile.open("C:/Users/kevin/Desktop/OpenGLStarterCode/models/teapot.txt");
+	numLines = 0;
 	modelFile >> numLines;
 	float* model1 = new float[numLines];
 	for (int i = 0; i < numLines; i++) {
@@ -287,6 +295,41 @@ int main(int argc, char* argv[]) {
 
 	printf("%s\n", INSTRUCTIONS);
 
+
+
+
+
+
+
+	
+	//************
+	// before even loop, we can start load our map
+	//*************
+
+
+	ifstream mapFile;
+
+	mapFile.open("C:/Users/kevin/Desktop/OpenGLStarterCode/models/map.txt");
+	mapFile >> mapW;
+	mapFile >> mapH;
+	printf("%d\n",mapW);
+	printf("%d\n", mapH);
+
+	totalObject = mapW * mapH;
+	mapArray = new char[totalObject];
+	for (int i = 0; i < totalObject; i++) {
+		mapFile >> mapArray[i];
+	}
+	printf(mapArray);
+	
+	mapFile.close();
+
+
+
+
+
+
+
 	//Event Loop (Loop forever processing each event as fast as possible)
 	SDL_Event windowEvent;
 	bool quit = false;
@@ -305,12 +348,17 @@ int main(int argc, char* argv[]) {
 			//SJG: Use key input to change the state of the object
 			//     We can use the ".mod" flag to see if modifiers such as shift are pressed
 			if (windowEvent.type == SDL_KEYDOWN && windowEvent.key.keysym.sym == SDLK_UP) { //If "up key" is pressed
-				if (windowEvent.key.keysym.mod & KMOD_SHIFT) objx -= .1; //Is shift pressed?
-				else objz += .1;
+				//if (windowEvent.key.keysym.mod & KMOD_SHIFT) objx -= .1; //Is shift pressed?
+				//objz += .1;
+				camPosx += camDirx * 0.1;
+				camPosy += camDiry * 0.1;
+				camPosz += camDirz * 0.1;
 			}
 			if (windowEvent.type == SDL_KEYDOWN && windowEvent.key.keysym.sym == SDLK_DOWN) { //If "down key" is pressed
-				if (windowEvent.key.keysym.mod & KMOD_SHIFT) objx += .1; //Is shift pressed?
-				else objz -= .1;
+				//if (windowEvent.key.keysym.mod & KMOD_SHIFT) objx += .1; //Is shift pressed?
+				camPosx -= camDirx * 0.1;
+				camPosy -= camDiry * 0.1;
+				camPosz -= camDirz * 0.1;
 			}
 			if (windowEvent.type == SDL_KEYDOWN && windowEvent.key.keysym.sym == SDLK_LEFT) { //If "left key" is pressed
 				objy -= .1;
@@ -323,6 +371,8 @@ int main(int argc, char* argv[]) {
 				colG = rand01();
 				colB = rand01();
 			}
+
+		
 
 		}
 
@@ -354,7 +404,7 @@ int main(int argc, char* argv[]) {
 		glUniform1i(glGetUniformLocation(texturedShader, "tex1"), 1);
 
 		glBindVertexArray(vao);
-		drawGeometry(texturedShader);
+		drawMap(texturedShader);
 
 		SDL_GL_SwapWindow(window); //Double buffering
 	}
@@ -369,11 +419,12 @@ int main(int argc, char* argv[]) {
 	return 0;
 }
 
-void drawObject(int shaderProgram, GLint uniTexID, std::string s) {
+void drawObject(int shaderProgram, GLint uniTexID, char c, float Tx, float Ty, float Tz ) {
 	glm::mat4 model = glm::mat4(1);
 	GLint uniModel = glGetUniformLocation(shaderProgram, "model");
-	if (s == "big teapot") {
+	if (c == 'b') { //stands for big teapot for now
 		//Rotate model (matrix) based on how much time has past
+		model = glm::translate(model, glm::vec3(Tx, Ty, Tz));
 		model = glm::rotate(model, timePast * 3.14f / 2, glm::vec3(0.0f, 1.0f, 1.0f));
 		model = glm::rotate(model, timePast * 3.14f / 4, glm::vec3(1.0f, 0.0f, 0.0f));
 		//model = glm::scale(model,glm::vec3(.2f,.2f,.2f)); //An example of scale
@@ -386,10 +437,10 @@ void drawObject(int shaderProgram, GLint uniTexID, std::string s) {
 		//Draw an instance of the model (at the position & orientation specified by the model matrix above)
 		glDrawArrays(GL_TRIANGLES, startVertTeapot, numVertsTeapot); //(Primitive Type, Start Vertex, Num Verticies)
 	}
-	if (s == "small teapot") {
+	if (c == 't') { //stands for small teapot for now
 		//Translate the model (matrix) left and back
 		model = glm::mat4(1); //Load intentity
-		model = glm::translate(model, glm::vec3(-2, -1, -.4));
+		model = glm::translate(model, glm::vec3(Tx, Ty, Tz));
 		//model = glm::scale(model,2.f*glm::vec3(1.f,1.f,0.5f)); //scale example
 		glUniformMatrix4fv(uniModel, 1, GL_FALSE, glm::value_ptr(model));
 
@@ -399,9 +450,12 @@ void drawObject(int shaderProgram, GLint uniTexID, std::string s) {
 		//Draw an instance of the model (at the position & orientation specified by the model matrix above)
 		glDrawArrays(GL_TRIANGLES, startVertTeapot, numVertsTeapot); //(Primitive Type, Start Vertex, Num Verticies)
 	}
-	if (s == "knot") {
+	if (c == 'S') {
+		
+
 		model = glm::mat4(1);
-		model = glm::scale(model, glm::vec3(.8f, .8f, .8f)); //scale this model
+		model = glm::translate(model, glm::vec3(Tx, Ty, Tz));
+		model = glm::scale(model, glm::vec3(.1f, .1f, .1f)); //scale this model
 		//Translate the model (matrix) based on where objx/y/z is
 		// ... these variables are set when the user presses the arrow keys
 		model = glm::translate(model, glm::vec3(objx, objy, objz));
@@ -414,11 +468,25 @@ void drawObject(int shaderProgram, GLint uniTexID, std::string s) {
 		glDrawArrays(GL_TRIANGLES, startVertKnot, numVertsKnot); //(Primitive Type, Start Vertex, Num Verticies)
 	}
 
+	if (c == 'W' ) {
+		//Translate the model (matrix) left and back
+		model = glm::mat4(1); //Load intentity
+		model = glm::translate(model, glm::vec3(Tx, Ty, Tz));
+		model = glm::scale(model,2.f*glm::vec3(.1f,.1f,0.1f)); //scale example
+		glUniformMatrix4fv(uniModel, 1, GL_FALSE, glm::value_ptr(model));
+
+		//Set which texture to use (0 = wood texture ... bound to GL_TEXTURE0)
+		glUniform1i(uniTexID, 1);
+
+		//Draw an instance of the model (at the position & orientation specified by the model matrix above)
+		glDrawArrays(GL_TRIANGLES, startVertCube, numVertsCube); //(Primitive Type, Start Vertex, Num Verticies)
+	}
+
 
 
 }
 //in this case, model1 will be teapot and model2 will be knot.
-void drawGeometry(int shaderProgram) {
+void drawMap(int shaderProgram) {
 
 	GLint uniColor = glGetUniformLocation(shaderProgram, "inColor");
 	glm::vec3 colVec(colR, colG, colB);
@@ -426,28 +494,60 @@ void drawGeometry(int shaderProgram) {
 
 	GLint uniTexID = glGetUniformLocation(shaderProgram, "texID");
 
-	//************
-	//Draw model #1 the first time //teapot middle rotate
-	//This model is stored in the VBO starting a offest startVertTeapot and with numVertsTeapot num of verticies
-	//*************
-	drawObject(shaderProgram, uniTexID, "big teapot");
+
+	//add up lit to the map
+	for (int i = -1; i < mapW + 1; i++) {
+		drawObject(shaderProgram, uniTexID, 'W', 0, i*0.2, 0.2);
+	}
+	//add bot lit 
+	for (int i = -1; i < mapW + 1; i++) {
+		drawObject(shaderProgram, uniTexID, 'W', 0, i * 0.2, -0.2*mapH);
+	}
+
+	//left lit
+	for (int j = 0; j < mapH; j++) {
+		drawObject(shaderProgram, uniTexID, 'W', 0, -0.2, -0.2 * j);
+	}
+
+	//right lit
+	for (int j = 0; j < mapH; j++) {
+		drawObject(shaderProgram, uniTexID, 'W', 0, 0.2*mapW, -0.2 * j);
+	}
 
 
 
-	//************
-	//Draw model #1 the second time //teapot small
-	//This model is stored in the VBO starting a offest startVertTeapot and with numVertsTeapot num. of verticies
-	//*************
-	drawObject(shaderProgram, uniTexID, "small teapot");
+	float tempX = 0;
+	float tempY = 0;
+	float tempZ = 0;
+	for (int i = 0; i < mapH; i++) {
+		tempY = 0;
+		for (int j = 0; j < mapW; j++) {
+			int index = i * mapH + j;
+			//printf("%c\n",mapArray[index]);
+			drawObject(shaderProgram, uniTexID, mapArray[index], tempX, tempY, tempZ);
+			tempY += 0.2;
+		}
+		tempZ -= 0.2;
+	}
+
 	
 
-	
-	//************
-	//Draw model #2 once //knot 
-	//This model is stored in the VBO starting a offest startVertKnot and with numVertsKnot num of verticies
-	//*************
 
-	drawObject(shaderProgram, uniTexID, "knot");
+	
+	/*drawObject(shaderProgram, uniTexID, "cube", 0, 0, 0);
+	drawObject(shaderProgram, uniTexID, "cube", 0, 0, -0.2);
+	drawObject(shaderProgram, uniTexID, "cube", 0, 0.4, -0.2);
+	drawObject(shaderProgram, uniTexID, "cube", 0, 0.4, -0.4);*/
+
+
+
+
+
+
+
+
+	
+
 	
 
 }
