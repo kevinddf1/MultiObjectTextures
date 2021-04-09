@@ -67,8 +67,8 @@ int numVertsTeapot, numVertsKnot, numVertsCube, numVertsSphere = 0;
 //You should have a representation for the state of each object
 float objx = 0, objy = 0, objz = 0;
 float colR = 1, colG = 1, colB = 1;
-float camPosx = 4, camPosy = 0, camPosz = 0;
-float camDirx = 0, camDiry = 0, camDirz = 0;
+float camPosx = 3, camPosy = 0.4, camPosz = -0.4;
+float camDirx = 0, camDiry = 0.4, camDirz = -0.4;
 
 
 bool DEBUG_ON = true;
@@ -316,13 +316,29 @@ int main(int argc, char* argv[]) {
 	printf("%d\n", mapH);
 
 	totalObject = mapW * mapH;
+	
+
 	mapArray = new char[totalObject];
 	for (int i = 0; i < totalObject; i++) {
 		mapFile >> mapArray[i];
+		//if (mapArray[i] == 'S') {
+		//	//calulate the camera postion
+		//	camPosx = 0.1;
+		//	camPosy = ((i+1) % 5) * 0.2 - 0.1;
+		//	camPosz = ((i+1) / 5) * -0.2 - 0.1;
+		//	printf("%f, %f, %f \n", camPosx, camPosy, camPosz);
+		//	camDirx = 0;
+		//	camDiry = 1;
+		//	camDirz = 0;
+		//}
+
+		
 	}
-	printf(mapArray);
+	//printf(mapArray);
 	
 	mapFile.close();
+
+
 
 
 
@@ -349,16 +365,17 @@ int main(int argc, char* argv[]) {
 			//     We can use the ".mod" flag to see if modifiers such as shift are pressed
 			if (windowEvent.type == SDL_KEYDOWN && windowEvent.key.keysym.sym == SDLK_UP) { //If "up key" is pressed
 				//if (windowEvent.key.keysym.mod & KMOD_SHIFT) objx -= .1; //Is shift pressed?
-				//objz += .1;
-				camPosx += camDirx * 0.1;
+				objz += .1;
+				/*camPosx += camDirx * 0.1;
 				camPosy += camDiry * 0.1;
-				camPosz += camDirz * 0.1;
+				camPosz += camDirz * 0.1;*/
 			}
 			if (windowEvent.type == SDL_KEYDOWN && windowEvent.key.keysym.sym == SDLK_DOWN) { //If "down key" is pressed
+				objz -= .1;
 				//if (windowEvent.key.keysym.mod & KMOD_SHIFT) objx += .1; //Is shift pressed?
-				camPosx -= camDirx * 0.1;
+				/*camPosx -= camDirx * 0.1;
 				camPosy -= camDiry * 0.1;
-				camPosz -= camDirz * 0.1;
+				camPosz -= camDirz * 0.1;*/
 			}
 			if (windowEvent.type == SDL_KEYDOWN && windowEvent.key.keysym.sym == SDLK_LEFT) { //If "left key" is pressed
 				objy -= .1;
@@ -472,7 +489,7 @@ void drawObject(int shaderProgram, GLint uniTexID, char c, float Tx, float Ty, f
 		//Translate the model (matrix) left and back
 		model = glm::mat4(1); //Load intentity
 		model = glm::translate(model, glm::vec3(Tx, Ty, Tz));
-		model = glm::scale(model,2.f*glm::vec3(.1f,.1f,0.1f)); //scale example
+		model = glm::scale(model,2.f*glm::vec3(.1f, .1f, .1f)); //scale example
 		glUniformMatrix4fv(uniModel, 1, GL_FALSE, glm::value_ptr(model));
 
 		//Set which texture to use (0 = wood texture ... bound to GL_TEXTURE0)
