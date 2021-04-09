@@ -439,12 +439,15 @@ int main(int argc, char* argv[]) {
 void drawObject(int shaderProgram, GLint uniTexID, char c, float Tx, float Ty, float Tz ) {
 	glm::mat4 model = glm::mat4(1);
 	GLint uniModel = glGetUniformLocation(shaderProgram, "model");
-	if (c == 'b') { //stands for big teapot for now
+
+	//goal
+	if (c == 'G') { //stands for goal, spining teapot
 		//Rotate model (matrix) based on how much time has past
+		model = glm::mat4(1);
 		model = glm::translate(model, glm::vec3(Tx, Ty, Tz));
 		model = glm::rotate(model, timePast * 3.14f / 2, glm::vec3(0.0f, 1.0f, 1.0f));
 		model = glm::rotate(model, timePast * 3.14f / 4, glm::vec3(1.0f, 0.0f, 0.0f));
-		//model = glm::scale(model,glm::vec3(.2f,.2f,.2f)); //An example of scale
+		model = glm::scale(model,glm::vec3(.1f,.1f,.1f)); //An example of scale
 		uniModel = glGetUniformLocation(shaderProgram, "model");
 		glUniformMatrix4fv(uniModel, 1, GL_FALSE, glm::value_ptr(model)); //pass model matrix to shader
 
@@ -454,22 +457,22 @@ void drawObject(int shaderProgram, GLint uniTexID, char c, float Tx, float Ty, f
 		//Draw an instance of the model (at the position & orientation specified by the model matrix above)
 		glDrawArrays(GL_TRIANGLES, startVertTeapot, numVertsTeapot); //(Primitive Type, Start Vertex, Num Verticies)
 	}
-	if (c == 't') { //stands for small teapot for now
-		//Translate the model (matrix) left and back
-		model = glm::mat4(1); //Load intentity
-		model = glm::translate(model, glm::vec3(Tx, Ty, Tz));
-		//model = glm::scale(model,2.f*glm::vec3(1.f,1.f,0.5f)); //scale example
-		glUniformMatrix4fv(uniModel, 1, GL_FALSE, glm::value_ptr(model));
+	//if (c == 't') { //stands for small teapot for now
+	//	//Translate the model (matrix) left and back
+	//	model = glm::mat4(1); //Load intentity
+	//	model = glm::translate(model, glm::vec3(Tx, Ty, Tz));
+	//	//model = glm::scale(model,2.f*glm::vec3(1.f,1.f,0.5f)); //scale example
+	//	glUniformMatrix4fv(uniModel, 1, GL_FALSE, glm::value_ptr(model));
 
-		//Set which texture to use (0 = wood texture ... bound to GL_TEXTURE0)
-		glUniform1i(uniTexID, 0);
+	//	//Set which texture to use (0 = wood texture ... bound to GL_TEXTURE0)
+	//	glUniform1i(uniTexID, 0);
 
-		//Draw an instance of the model (at the position & orientation specified by the model matrix above)
-		glDrawArrays(GL_TRIANGLES, startVertTeapot, numVertsTeapot); //(Primitive Type, Start Vertex, Num Verticies)
-	}
+	//	//Draw an instance of the model (at the position & orientation specified by the model matrix above)
+	//	glDrawArrays(GL_TRIANGLES, startVertTeapot, numVertsTeapot); //(Primitive Type, Start Vertex, Num Verticies)
+	//}
+
+	//start point
 	if (c == 'S') {
-		
-
 		model = glm::mat4(1);
 		model = glm::translate(model, glm::vec3(Tx, Ty, Tz));
 		model = glm::scale(model, glm::vec3(.1f, .1f, .1f)); //scale this model
@@ -485,6 +488,7 @@ void drawObject(int shaderProgram, GLint uniTexID, char c, float Tx, float Ty, f
 		glDrawArrays(GL_TRIANGLES, startVertKnot, numVertsKnot); //(Primitive Type, Start Vertex, Num Verticies)
 	}
 
+	//walls
 	if (c == 'W' ) {
 		//Translate the model (matrix) left and back
 		model = glm::mat4(1); //Load intentity
@@ -498,6 +502,52 @@ void drawObject(int shaderProgram, GLint uniTexID, char c, float Tx, float Ty, f
 		//Draw an instance of the model (at the position & orientation specified by the model matrix above)
 		glDrawArrays(GL_TRIANGLES, startVertCube, numVertsCube); //(Primitive Type, Start Vertex, Num Verticies)
 	}
+
+	//doors
+	if (c == 'A' || c == 'B' || c == 'C' || c == 'D' || c == 'E') {
+		if (c == 'A') {
+			colR = 1;
+			colG = 0;
+			colB = 0;
+		}
+		model = glm::mat4(1); //Load intentity
+		model = glm::translate(model, glm::vec3(Tx, Ty, Tz));
+		model = glm::scale(model, 2.f * glm::vec3(.1f, .1f, .1f)); //scale example
+		
+		uniModel = glGetUniformLocation(shaderProgram, "model");
+
+		glUniformMatrix4fv(uniModel, 1, GL_FALSE, glm::value_ptr(model));
+
+		//Set which texture to use (0 = wood texture ... bound to GL_TEXTURE0)
+		glUniform1i(uniTexID, 0);
+
+		//Draw an instance of the model (at the position & orientation specified by the model matrix above)
+		glDrawArrays(GL_TRIANGLES, startVertCube, numVertsCube); //(Primitive Type, Start Vertex, Num Verticies)
+	}
+
+	//keys
+	if (c == 'a' || c == 'b' || c == 'c' || c == 'd' || c == 'e') { //stands for keys
+		if (c == 'a') {
+			colR = 1;
+			colG = 0;
+			colB = 0;
+		}
+		//Rotate model (matrix) based on how much time has past
+		model = glm::mat4(1);
+		model = glm::translate(model, glm::vec3(Tx, Ty, Tz));
+		model = glm::rotate(model, timePast * 3.14f / 2, glm::vec3(0.0f, 1.0f, 1.0f));
+		model = glm::rotate(model, timePast * 3.14f / 4, glm::vec3(1.0f, 0.0f, 0.0f));
+		model = glm::scale(model, glm::vec3(.05f, .05f, .05f)); //An example of scale
+		uniModel = glGetUniformLocation(shaderProgram, "model");
+		glUniformMatrix4fv(uniModel, 1, GL_FALSE, glm::value_ptr(model)); //pass model matrix to shader
+
+		//Set which texture to use (-1 = no texture)
+		glUniform1i(uniTexID, -1);
+
+		//Draw an instance of the model (at the position & orientation specified by the model matrix above)
+		glDrawArrays(GL_TRIANGLES, startVertCube, numVertsCube); //(Primitive Type, Start Vertex, Num Verticies)
+	}
+
 
 
 
