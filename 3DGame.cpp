@@ -244,6 +244,31 @@ int main(int argc, char* argv[]) {
 	SDL_FreeSurface(surface1);
 	//// End Allocate Texture ///////
 
+		//// Allocate Texture 2 (stone) ///////
+	SDL_Surface* surface2 = SDL_LoadBMP("C:/Users/kevin/Desktop/MultiObjectTextures/unnamed.bmp");
+	if (surface == NULL) { //If it failed, print the error
+		printf("Error: \"%s\"\n", SDL_GetError()); return 1;
+	}
+	GLuint tex2;
+	glGenTextures(1, &tex2);
+
+	//Load the texture into memory
+	glActiveTexture(GL_TEXTURE1);
+
+	glBindTexture(GL_TEXTURE_2D, tex2);
+	//What to do outside 0-1 range
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	//How to filter
+	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, surface2->w, surface2->h, 0, GL_BGR, GL_UNSIGNED_BYTE, surface2->pixels);
+	glGenerateMipmap(GL_TEXTURE_2D); //Mip maps the texture
+
+	SDL_FreeSurface(surface2);
+	//// End Allocate Texture ///////
+
 
 
 	//// VAO ///////
@@ -361,6 +386,13 @@ int main(int argc, char* argv[]) {
 				SDL_SetWindowFullscreen(window, fullscreen ? SDL_WINDOW_FULLSCREEN : 0); //Toggle fullscreen 
 			}
 
+			//Fan
+			if (windowEvent.type == SDL_KEYUP && windowEvent.key.keysym.sym == SDLK_v) { //If "v" is pressed, top view mode
+				camPosx = 3, camPosy = 0.4, camPosz = -0.4;
+				camDirx = 0, camDiry = 0.4, camDirz = -0.4;
+				
+			}
+
 			//SJG: Use key input to change the state of the object
 			//     We can use the ".mod" flag to see if modifiers such as shift are pressed
 			if (windowEvent.type == SDL_KEYDOWN && windowEvent.key.keysym.sym == SDLK_UP) { //If "up key" is pressed
@@ -419,6 +451,10 @@ int main(int argc, char* argv[]) {
 		glActiveTexture(GL_TEXTURE1);
 		glBindTexture(GL_TEXTURE_2D, tex1);
 		glUniform1i(glGetUniformLocation(texturedShader, "tex1"), 1);
+
+		glActiveTexture(GL_TEXTURE2);
+		glBindTexture(GL_TEXTURE_2D, tex2);
+		glUniform1i(glGetUniformLocation(texturedShader, "tex2"), 2);
 
 		glBindVertexArray(vao);
 		drawMap(texturedShader);
@@ -503,13 +539,29 @@ void drawObject(int shaderProgram, GLint uniTexID, char c, float Tx, float Ty, f
 		glDrawArrays(GL_TRIANGLES, startVertCube, numVertsCube); //(Primitive Type, Start Vertex, Num Verticies)
 	}
 
+	//floor
+	if (c == 'F') {
+		//Translate the model (matrix) left and back
+		model = glm::mat4(1); //Load intentity
+		model = glm::translate(model, glm::vec3(Tx, Ty, Tz));
+		model = glm::scale(model, 2.f * glm::vec3(.1f, .1f, .1f)); //scale example
+		glUniformMatrix4fv(uniModel, 1, GL_FALSE, glm::value_ptr(model));
+
+		//Set which texture to use (0 = wood texture ... bound to GL_TEXTURE0)
+		glUniform1i(uniTexID, 2);
+
+		//Draw an instance of the model (at the position & orientation specified by the model matrix above)
+		glDrawArrays(GL_TRIANGLES, startVertCube, numVertsCube); //(Primitive Type, Start Vertex, Num Verticies)
+	}
+
+
 	//doors
 	if (c == 'A' || c == 'B' || c == 'C' || c == 'D' || c == 'E') {
-		if (c == 'A') {
+		/*if (c == 'A') {
 			colR = 1;
 			colG = 0;
 			colB = 0;
-		}
+		}*/
 		model = glm::mat4(1); //Load intentity
 		model = glm::translate(model, glm::vec3(Tx, Ty, Tz));
 		model = glm::scale(model, 2.f * glm::vec3(.1f, .1f, .1f)); //scale example
@@ -527,11 +579,11 @@ void drawObject(int shaderProgram, GLint uniTexID, char c, float Tx, float Ty, f
 
 	//keys
 	if (c == 'a' || c == 'b' || c == 'c' || c == 'd' || c == 'e') { //stands for keys
-		if (c == 'a') {
+		/*if (c == 'a') {
 			colR = 1;
 			colG = 0;
 			colB = 0;
-		}
+		}*/
 		//Rotate model (matrix) based on how much time has past
 		model = glm::mat4(1);
 		model = glm::translate(model, glm::vec3(Tx, Ty, Tz));
@@ -592,12 +644,16 @@ void drawMap(int shaderProgram) {
 			int index = i * mapH + j;
 			//printf("%c\n",mapArray[index]);
 			drawObject(shaderProgram, uniTexID, mapArray[index], tempX, tempY, tempZ);
+			drawObject(shaderProgram, uniTexID, 'F', tempX-0.2, tempY, tempZ);
 			tempY += 0.2;
 		}
 		tempZ -= 0.2;
 	}
 
-	
+
+
+
+	//drawObject(shaderProgram, uniTexID, 'W', 0, 0, 0);
 
 
 	
