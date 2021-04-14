@@ -44,11 +44,33 @@ const char* INSTRUCTIONS =
 #include <fstream>
 #include <string>
 #include <map>
+#include <list>
+#include <cmath>
+
+
 using namespace std;
 
 int screenWidth = 800;
 int screenHeight = 600;
 float timePast = 0;
+
+
+//Character Atributes
+float StartX = 0;
+float StartY = 0;
+float StartZ = 0;
+
+
+float angleSpeed = 0.1;
+float linSpeed = 0.01;
+float playerRadius = .05;
+float pickupRadius = .06;
+
+
+
+//Initalize player inventory to be emtpy
+std::list<string> hasItem = {  };  //Player inventory
+
 
 //map variables
 int mapW = 0;
@@ -83,6 +105,33 @@ float rand01() {
 
 void drawMap(int shaderProgram);
 void drawObject(int shaderProgram, GLint uniTexID, char c, float Tx, float Ty, float Tz);
+bool isWalkable(float newY, float newZ);
+
+
+
+//--Check if a given position would be okay for the player to move to(ie, not colliding
+//	--  with any walls or doors).We don't just check if the player's center is colliding,
+//	--but also check a radius around the agent.
+//	--TODO: We end up treating the agent as a square more than a circle...
+//	--        ...this casues us problems with corners. = /
+bool isWalkable(float newY, float newZ) {
+	printf("Y and Z value: %f, %f\n", newY, newZ);
+	for (int dz = -1; dz <= 1; dz += 2) {
+		for (int dy = -1; dy <= 1; dy += 2) {
+			float i = (newZ + playerRadius * dz)*5;
+			float j = (newY + playerRadius * dy)*5;
+			int index = round(-i)*mapW + round(j);
+			printf("the index is %d \n", index);
+			if (mapArray[index] == 'W' || mapArray[index] == 'A'|| round(-i) <0 || round(-i) >= mapH || round(j)<0||round(j)>=mapW) {
+				return false;
+			}
+		}
+	}
+	printf("result is yes, u can walk\n");
+	return true;
+}
+
+
 
 int main(int argc, char* argv[]) {
 	SDL_Init(SDL_INIT_VIDEO);  //Initialize Graphics (for OpenGL)
@@ -346,6 +395,7 @@ int main(int argc, char* argv[]) {
 	mapArray = new char[totalObject];
 	for (int i = 0; i < totalObject; i++) {
 		mapFile >> mapArray[i];
+		//set up the camera postion and direction
 		//if (mapArray[i] == 'S') {
 		//	//calulate the camera postion
 		//	camPosx = 0.1;
@@ -397,23 +447,23 @@ int main(int argc, char* argv[]) {
 			//     We can use the ".mod" flag to see if modifiers such as shift are pressed
 			if (windowEvent.type == SDL_KEYDOWN && windowEvent.key.keysym.sym == SDLK_UP) { //If "up key" is pressed
 				//if (windowEvent.key.keysym.mod & KMOD_SHIFT) objx -= .1; //Is shift pressed?
-				objz += .1;
+				if (isWalkable(StartY + objy, StartZ + objz + linSpeed)) { objz += linSpeed; }
 				/*camPosx += camDirx * 0.1;
 				camPosy += camDiry * 0.1;
 				camPosz += camDirz * 0.1;*/
 			}
 			if (windowEvent.type == SDL_KEYDOWN && windowEvent.key.keysym.sym == SDLK_DOWN) { //If "down key" is pressed
-				objz -= .1;
+				if (isWalkable(StartY + objy, StartZ + objz - linSpeed)) { objz -= linSpeed; }
 				//if (windowEvent.key.keysym.mod & KMOD_SHIFT) objx += .1; //Is shift pressed?
 				/*camPosx -= camDirx * 0.1;
 				camPosy -= camDiry * 0.1;
 				camPosz -= camDirz * 0.1;*/
 			}
 			if (windowEvent.type == SDL_KEYDOWN && windowEvent.key.keysym.sym == SDLK_LEFT) { //If "left key" is pressed
-				objy -= .1;
+				if (isWalkable(StartY + objy - linSpeed, StartZ + objz)) { objy -= linSpeed; }
 			}
 			if (windowEvent.type == SDL_KEYDOWN && windowEvent.key.keysym.sym == SDLK_RIGHT) { //If "right key" is pressed
-				objy += .1;
+				if (isWalkable(StartY + objy + linSpeed, StartZ + objz)) { objy += linSpeed; }
 			}
 			if (windowEvent.type == SDL_KEYUP && windowEvent.key.keysym.sym == SDLK_c) { //If "c" is pressed
 				colR = rand01();
@@ -514,7 +564,7 @@ void drawObject(int shaderProgram, GLint uniTexID, char c, float Tx, float Ty, f
 		model = glm::scale(model, glm::vec3(.1f, .1f, .1f)); //scale this model
 		//Translate the model (matrix) based on where objx/y/z is
 		// ... these variables are set when the user presses the arrow keys
-		model = glm::translate(model, glm::vec3(objx, objy, objz));
+		model = glm::translate(model, glm::vec3(objx*10, objy*10, objz*10));
 
 		//Set which texture to use (1 = brick texture ... bound to GL_TEXTURE1)
 		glUniform1i(uniTexID, 1);
@@ -643,6 +693,12 @@ void drawMap(int shaderProgram) {
 		for (int j = 0; j < mapW; j++) {
 			int index = i * mapH + j;
 			//printf("%c\n",mapArray[index]);
+			if (mapArray[index] == 'S') {
+				StartX = tempX;
+				StartY = tempY;
+				StartZ = tempZ;
+			}
+
 			drawObject(shaderProgram, uniTexID, mapArray[index], tempX, tempY, tempZ);
 			drawObject(shaderProgram, uniTexID, 'F', tempX-0.2, tempY, tempZ);
 			tempY += 0.2;
