@@ -62,8 +62,9 @@ float StartX = 0;
 float StartY = 0;
 float StartZ = 0;
 
+bool topView = false;
 
-float angleSpeed = 0.1;
+float angleSpeed = 0.01;
 float linSpeed = 0.01;
 float playerRadius = .05;
 float pickupRadius = .01;
@@ -107,6 +108,7 @@ float objx = 0, objy = 0, objz = 0;
 float colR = 1, colG = 1, colB = 1;
 float camPosx = 3, camPosy = 0.4, camPosz = -0.4;
 float camDirx = 0, camDiry = 0.4, camDirz = -0.4;
+float upx = 1, upy = 0, upz = 0;
 
 
 bool DEBUG_ON = true;
@@ -503,16 +505,16 @@ int main(int argc, char* argv[]) {
 	for (int i = 0; i < totalObject; i++) {
 		mapFile >> mapArray[i];
 		//set up the camera postion and direction
-		//if (mapArray[i] == 'S') {
-		//	//calulate the camera postion
-		//	camPosx = 0.1;
-		//	camPosy = ((i+1) % 5) * 0.2 - 0.1;
-		//	camPosz = ((i+1) / 5) * -0.2 - 0.1;
-		//	printf("%f, %f, %f \n", camPosx, camPosy, camPosz);
-		//	camDirx = 0;
-		//	camDiry = 1;
-		//	camDirz = 0;
-		//}
+		if (mapArray[i] == 'S') {
+			//calulate the camera postion
+			camPosx = 0;
+			camPosy = ((i) % 5) * 0.2;
+			camPosz = ((i) / 5) * -0.2;
+			printf("%f, %f, %f \n", camPosx, camPosy, camPosz);
+			camDirx = 0;
+			camDiry = camPosy+0.1;
+			camDirz = camPosz;
+		}
 
 		
 	}
@@ -545,8 +547,22 @@ int main(int argc, char* argv[]) {
 
 			//Fan
 			if (windowEvent.type == SDL_KEYUP && windowEvent.key.keysym.sym == SDLK_v) { //If "v" is pressed, top view mode
-				camPosx = 3, camPosy = 0.4, camPosz = -0.4;
-				camDirx = 0, camDiry = 0.4, camDirz = -0.4;
+				topView = !topView;
+				printf("%s", topView ? "true" : "false");
+				if (topView) {
+					camPosx = 3, camPosy = 0.4, camPosz = -0.4;
+					camDirx = 0, camDiry = 0.4, camDirz = -0.4;
+					upx = 0, upy = 0, upz = 1;
+				}
+				else {
+					camPosx = 0;
+					camPosy = StartY + objy;
+					camPosz = StartZ + objz;
+					camDirx = 0;
+					camDiry = camPosy+0.1;
+					camDirz = camPosz;
+					upx = 1, upy = 0, upz = 0;
+				}
 				
 			}
 
@@ -556,7 +572,7 @@ int main(int argc, char* argv[]) {
 				//if (windowEvent.key.keysym.mod & KMOD_SHIFT) objx -= .1; //Is shift pressed?
 				if (isWalkable(StartY + objy, StartZ + objz + linSpeed)) { 
 					objz += linSpeed; 
-					checkForEvents(StartY + objy, StartZ + objz + linSpeed);
+					checkForEvents(StartY + objy, StartZ + objz );
 				}
 				/*camPosx += camDirx * 0.1;
 				camPosy += camDiry * 0.1;
@@ -565,7 +581,7 @@ int main(int argc, char* argv[]) {
 			if (windowEvent.type == SDL_KEYDOWN && windowEvent.key.keysym.sym == SDLK_DOWN) { //If "down key" is pressed
 				if (isWalkable(StartY + objy, StartZ + objz - linSpeed)) {
 					objz -= linSpeed;
-					checkForEvents(StartY + objy, StartZ + objz - linSpeed);
+					checkForEvents(StartY + objy, StartZ + objz);
 				}
 				//if (windowEvent.key.keysym.mod & KMOD_SHIFT) objx += .1; //Is shift pressed?
 				/*camPosx -= camDirx * 0.1;
@@ -575,13 +591,13 @@ int main(int argc, char* argv[]) {
 			if (windowEvent.type == SDL_KEYDOWN && windowEvent.key.keysym.sym == SDLK_LEFT) { //If "left key" is pressed
 				if (isWalkable(StartY + objy - linSpeed, StartZ + objz)) { 
 					objy -= linSpeed; 
-					checkForEvents(StartY + objy - linSpeed, StartZ + objz);
+					checkForEvents(StartY + objy , StartZ + objz);
 				}
 			}
 			if (windowEvent.type == SDL_KEYDOWN && windowEvent.key.keysym.sym == SDLK_RIGHT) { //If "right key" is pressed
 				if (isWalkable(StartY + objy + linSpeed, StartZ + objz)) { 
 					objy += linSpeed; 
-					checkForEvents(StartY + objy + linSpeed, StartZ + objz);
+					checkForEvents(StartY + objy , StartZ + objz);
 				}
 			}
 			if (windowEvent.type == SDL_KEYUP && windowEvent.key.keysym.sym == SDLK_c) { //If "c" is pressed
@@ -606,10 +622,10 @@ int main(int argc, char* argv[]) {
 		glm::mat4 view = glm::lookAt(
 			glm::vec3(camPosx, camPosy, camPosz),  //Cam Position
 			glm::vec3(camDirx, camDiry, camDirz),  //Look at point direction
-			glm::vec3(0.0f, 0.0f, 1.0f)); //Up
+			glm::vec3(upx, upy, upz)); //Up
 		glUniformMatrix4fv(uniView, 1, GL_FALSE, glm::value_ptr(view));
 
-		glm::mat4 proj = glm::perspective(3.14f / 4, screenWidth / (float)screenHeight, 1.0f, 10.0f); //FOV, aspect, near, far
+		glm::mat4 proj = glm::perspective(3.14f / 4, screenWidth / (float)screenHeight, 0.001f, 30.0f); //FOV, aspect, near, far
 		glUniformMatrix4fv(uniProj, 1, GL_FALSE, glm::value_ptr(proj));
 
 
@@ -670,7 +686,7 @@ void drawObject(int shaderProgram, GLint uniColorID, GLint uniTexID, char c, flo
 
 
 	//start point
-	if (c == 'S') {
+	if (c == 'S' && topView) {
 		model = glm::mat4(1);
 		model = glm::translate(model, glm::vec3(Tx, Ty, Tz));
 		model = glm::scale(model, glm::vec3(.1f, .1f, .1f)); //scale this model
