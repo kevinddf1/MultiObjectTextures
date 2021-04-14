@@ -46,6 +46,8 @@ const char* INSTRUCTIONS =
 #include <map>
 #include <list>
 #include <cmath>
+#include <map>
+
 
 
 using namespace std;
@@ -64,7 +66,21 @@ float StartZ = 0;
 float angleSpeed = 0.1;
 float linSpeed = 0.01;
 float playerRadius = .05;
-float pickupRadius = .06;
+float pickupRadius = .01;
+
+
+bool win = false;
+
+
+//What map symbols corrispond to doors
+map<char, bool> isDoor;
+
+
+//What map symbols corrispond to keys
+map<char, bool> isKey;
+
+map<char, bool> playOwnItem;
+
 
 
 
@@ -104,8 +120,10 @@ float rand01() {
 }
 
 void drawMap(int shaderProgram);
-void drawObject(int shaderProgram, GLint uniTexID, char c, float Tx, float Ty, float Tz);
+void drawObject(int shaderProgram, GLint uniColorID, GLint uniTexID, char c, float Tx, float Ty, float Tz);
 bool isWalkable(float newY, float newZ);
+void checkForEvents(float currentY, float currentZ);
+void gameover();
 
 
 
@@ -121,19 +139,84 @@ bool isWalkable(float newY, float newZ) {
 			float i = (newZ + playerRadius * dz)*5;
 			float j = (newY + playerRadius * dy)*5;
 			int index = round(-i)*mapW + round(j);
-			printf("the index is %d \n", index);
-			if (mapArray[index] == 'W' || mapArray[index] == 'A'|| round(-i) <0 || round(-i) >= mapH || round(j)<0||round(j)>=mapW) {
+			//printf("the index is %d \n", index);
+			char element = mapArray[index];
+			if (element == 'W' ||  round(-i) <0 || round(-i) >= mapH || round(j)<0||round(j)>=mapW) {
+				return false;
+			}
+			if (isDoor[element] && !playOwnItem[tolower(element)]) {
 				return false;
 			}
 		}
 	}
-	printf("result is yes, u can walk\n");
+	//printf("result is yes, u can walk\n");
 	return true;
+}
+
+
+//--This is called each time the player moves.Here, we need to see if they pick up any
+//--keys or unlock any doors.
+//function checkForEvents()
+//--We know the player can only interact with objects in one of the 9 neighboring cells
+//--  so we only check the 8 extreme points of the agent(plus the center).
+//--Note: this assumes pickupRadius < cell size
+void checkForEvents(float currentY, float currentZ) {
+	for (int dz = -1; dz <= 1; dz += 2) {
+		for (int dy = -1; dy <= 1; dy += 2) {
+			float i = (currentZ + pickupRadius * dz) * 5;
+			float j = (currentY + pickupRadius * dy) * 5;
+			int index = round(-i) * mapW + round(j);
+			printf("the index is %d \n", index);
+			if (round(-i) < 0 || round(-i) >= mapH || round(j) < 0 || round(j) >= mapW) {
+				//out bound, ingore
+			}
+			else {
+				char element = mapArray[index];
+				if (element == 'G') {
+					playOwnItem['G'] = true;
+					printf("game over!");
+					gameover();
+				}
+				if (isKey[element]) {
+					playOwnItem[element] = true;
+				}
+			}
+		}
+	}
+	
+}
+
+void gameover() {
+	camPosx = 3, camPosy = 0.4, camPosz = -0.4;
+	camDirx = 0, camDiry = 0.4, camDirz = -0.4;
+	win = true;
 }
 
 
 
 int main(int argc, char* argv[]) {
+	isDoor['A'] = true;
+	isDoor['B'] = true;
+	isDoor['C'] = true;
+	isDoor['D'] = true;
+	isDoor['E'] = true;
+
+	isKey['a'] = true;
+	isKey['b'] = true;
+	isKey['c'] = true;
+	isKey['d'] = true;
+	isKey['e'] = true;
+
+	playOwnItem['a'] = false;
+	playOwnItem['b'] = false;
+	playOwnItem['c'] = false;
+	playOwnItem['d'] = false;
+	playOwnItem['e'] = false;
+	playOwnItem['G'] = false;
+
+
+	
+
 	SDL_Init(SDL_INIT_VIDEO);  //Initialize Graphics (for OpenGL)
 
 	//Ask SDL to get a recent version of OpenGL (3.2 or greater)
@@ -270,7 +353,7 @@ int main(int argc, char* argv[]) {
 
 	//// Allocate Texture 1 (Brick) ///////
 	SDL_Surface* surface1 = SDL_LoadBMP("C:/Users/kevin/Desktop/MultiObjectTextures/brick.bmp");
-	if (surface == NULL) { //If it failed, print the error
+	if (surface1 == NULL) { //If it failed, print the error
 		printf("Error: \"%s\"\n", SDL_GetError()); return 1;
 	}
 	GLuint tex1;
@@ -295,14 +378,14 @@ int main(int argc, char* argv[]) {
 
 		//// Allocate Texture 2 (stone) ///////
 	SDL_Surface* surface2 = SDL_LoadBMP("C:/Users/kevin/Desktop/MultiObjectTextures/unnamed.bmp");
-	if (surface == NULL) { //If it failed, print the error
+	if (surface2 == NULL) { //If it failed, print the error
 		printf("Error: \"%s\"\n", SDL_GetError()); return 1;
 	}
 	GLuint tex2;
 	glGenTextures(1, &tex2);
 
 	//Load the texture into memory
-	glActiveTexture(GL_TEXTURE1);
+	glActiveTexture(GL_TEXTURE2);
 
 	glBindTexture(GL_TEXTURE_2D, tex2);
 	//What to do outside 0-1 range
@@ -317,6 +400,32 @@ int main(int argc, char* argv[]) {
 
 	SDL_FreeSurface(surface2);
 	//// End Allocate Texture ///////
+
+			//// Allocate Texture 3 (win) ///////
+	SDL_Surface* surface3 = SDL_LoadBMP("C:/Users/kevin/Desktop/MultiObjectTextures/win.bmp");
+	if (surface3 == NULL) { //If it failed, print the error
+		printf("Error: \"%s\"\n", SDL_GetError()); return 1;
+	}
+	GLuint tex3;
+	glGenTextures(1, &tex3);
+
+	//Load the texture into memory
+	glActiveTexture(GL_TEXTURE3);
+
+	glBindTexture(GL_TEXTURE_2D, tex3);
+	//What to do outside 0-1 range
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	//How to filter
+	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, surface3->w, surface3->h, 0, GL_BGR, GL_UNSIGNED_BYTE, surface3->pixels);
+	glGenerateMipmap(GL_TEXTURE_2D); //Mip maps the texture
+
+	SDL_FreeSurface(surface3);
+	//// End Allocate Texture ///////
+
 
 
 
@@ -347,9 +456,7 @@ int main(int argc, char* argv[]) {
 	//Attribute, vals/attrib., type, isNormalized, stride, offset
 	glEnableVertexAttribArray(posAttrib);
 
-	//GLint colAttrib = glGetAttribLocation(phongShader, "inColor");
-	//glVertexAttribPointer(colAttrib, 3, GL_FLOAT, GL_FALSE, 8*sizeof(float), (void*)(3*sizeof(float)));
-	//glEnableVertexAttribArray(colAttrib);
+	
 
 	GLint normAttrib = glGetAttribLocation(texturedShader, "inNormal");
 	glVertexAttribPointer(normAttrib, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(5 * sizeof(float)));
@@ -447,23 +554,35 @@ int main(int argc, char* argv[]) {
 			//     We can use the ".mod" flag to see if modifiers such as shift are pressed
 			if (windowEvent.type == SDL_KEYDOWN && windowEvent.key.keysym.sym == SDLK_UP) { //If "up key" is pressed
 				//if (windowEvent.key.keysym.mod & KMOD_SHIFT) objx -= .1; //Is shift pressed?
-				if (isWalkable(StartY + objy, StartZ + objz + linSpeed)) { objz += linSpeed; }
+				if (isWalkable(StartY + objy, StartZ + objz + linSpeed)) { 
+					objz += linSpeed; 
+					checkForEvents(StartY + objy, StartZ + objz + linSpeed);
+				}
 				/*camPosx += camDirx * 0.1;
 				camPosy += camDiry * 0.1;
 				camPosz += camDirz * 0.1;*/
 			}
 			if (windowEvent.type == SDL_KEYDOWN && windowEvent.key.keysym.sym == SDLK_DOWN) { //If "down key" is pressed
-				if (isWalkable(StartY + objy, StartZ + objz - linSpeed)) { objz -= linSpeed; }
+				if (isWalkable(StartY + objy, StartZ + objz - linSpeed)) {
+					objz -= linSpeed;
+					checkForEvents(StartY + objy, StartZ + objz - linSpeed);
+				}
 				//if (windowEvent.key.keysym.mod & KMOD_SHIFT) objx += .1; //Is shift pressed?
 				/*camPosx -= camDirx * 0.1;
 				camPosy -= camDiry * 0.1;
 				camPosz -= camDirz * 0.1;*/
 			}
 			if (windowEvent.type == SDL_KEYDOWN && windowEvent.key.keysym.sym == SDLK_LEFT) { //If "left key" is pressed
-				if (isWalkable(StartY + objy - linSpeed, StartZ + objz)) { objy -= linSpeed; }
+				if (isWalkable(StartY + objy - linSpeed, StartZ + objz)) { 
+					objy -= linSpeed; 
+					checkForEvents(StartY + objy - linSpeed, StartZ + objz);
+				}
 			}
 			if (windowEvent.type == SDL_KEYDOWN && windowEvent.key.keysym.sym == SDLK_RIGHT) { //If "right key" is pressed
-				if (isWalkable(StartY + objy + linSpeed, StartZ + objz)) { objy += linSpeed; }
+				if (isWalkable(StartY + objy + linSpeed, StartZ + objz)) { 
+					objy += linSpeed; 
+					checkForEvents(StartY + objy + linSpeed, StartZ + objz);
+				}
 			}
 			if (windowEvent.type == SDL_KEYUP && windowEvent.key.keysym.sym == SDLK_c) { //If "c" is pressed
 				colR = rand01();
@@ -506,6 +625,10 @@ int main(int argc, char* argv[]) {
 		glBindTexture(GL_TEXTURE_2D, tex2);
 		glUniform1i(glGetUniformLocation(texturedShader, "tex2"), 2);
 
+		glActiveTexture(GL_TEXTURE3);
+		glBindTexture(GL_TEXTURE_2D, tex3);
+		glUniform1i(glGetUniformLocation(texturedShader, "tex3"), 3);
+
 		glBindVertexArray(vao);
 		drawMap(texturedShader);
 
@@ -522,12 +645,12 @@ int main(int argc, char* argv[]) {
 	return 0;
 }
 
-void drawObject(int shaderProgram, GLint uniTexID, char c, float Tx, float Ty, float Tz ) {
+void drawObject(int shaderProgram, GLint uniColorID, GLint uniTexID, char c, float Tx, float Ty, float Tz ) {
 	glm::mat4 model = glm::mat4(1);
 	GLint uniModel = glGetUniformLocation(shaderProgram, "model");
 
 	//goal
-	if (c == 'G') { //stands for goal, spining teapot
+	if (c == 'G' && !playOwnItem[c]) { //stands for goal, spining teapot
 		//Rotate model (matrix) based on how much time has past
 		model = glm::mat4(1);
 		model = glm::translate(model, glm::vec3(Tx, Ty, Tz));
@@ -538,24 +661,13 @@ void drawObject(int shaderProgram, GLint uniTexID, char c, float Tx, float Ty, f
 		glUniformMatrix4fv(uniModel, 1, GL_FALSE, glm::value_ptr(model)); //pass model matrix to shader
 
 		//Set which texture to use (-1 = no texture)
+		glUniform1i(uniColorID, -1);
 		glUniform1i(uniTexID, -1);
 
 		//Draw an instance of the model (at the position & orientation specified by the model matrix above)
 		glDrawArrays(GL_TRIANGLES, startVertTeapot, numVertsTeapot); //(Primitive Type, Start Vertex, Num Verticies)
 	}
-	//if (c == 't') { //stands for small teapot for now
-	//	//Translate the model (matrix) left and back
-	//	model = glm::mat4(1); //Load intentity
-	//	model = glm::translate(model, glm::vec3(Tx, Ty, Tz));
-	//	//model = glm::scale(model,2.f*glm::vec3(1.f,1.f,0.5f)); //scale example
-	//	glUniformMatrix4fv(uniModel, 1, GL_FALSE, glm::value_ptr(model));
 
-	//	//Set which texture to use (0 = wood texture ... bound to GL_TEXTURE0)
-	//	glUniform1i(uniTexID, 0);
-
-	//	//Draw an instance of the model (at the position & orientation specified by the model matrix above)
-	//	glDrawArrays(GL_TRIANGLES, startVertTeapot, numVertsTeapot); //(Primitive Type, Start Vertex, Num Verticies)
-	//}
 
 	//start point
 	if (c == 'S') {
@@ -567,6 +679,7 @@ void drawObject(int shaderProgram, GLint uniTexID, char c, float Tx, float Ty, f
 		model = glm::translate(model, glm::vec3(objx*10, objy*10, objz*10));
 
 		//Set which texture to use (1 = brick texture ... bound to GL_TEXTURE1)
+		glUniform1i(uniColorID, -1);
 		glUniform1i(uniTexID, 1);
 		glUniformMatrix4fv(uniModel, 1, GL_FALSE, glm::value_ptr(model));
 
@@ -583,6 +696,8 @@ void drawObject(int shaderProgram, GLint uniTexID, char c, float Tx, float Ty, f
 		glUniformMatrix4fv(uniModel, 1, GL_FALSE, glm::value_ptr(model));
 
 		//Set which texture to use (0 = wood texture ... bound to GL_TEXTURE0)
+		
+		
 		glUniform1i(uniTexID, 1);
 
 		//Draw an instance of the model (at the position & orientation specified by the model matrix above)
@@ -598,6 +713,7 @@ void drawObject(int shaderProgram, GLint uniTexID, char c, float Tx, float Ty, f
 		glUniformMatrix4fv(uniModel, 1, GL_FALSE, glm::value_ptr(model));
 
 		//Set which texture to use (0 = wood texture ... bound to GL_TEXTURE0)
+
 		glUniform1i(uniTexID, 2);
 
 		//Draw an instance of the model (at the position & orientation specified by the model matrix above)
@@ -607,11 +723,7 @@ void drawObject(int shaderProgram, GLint uniTexID, char c, float Tx, float Ty, f
 
 	//doors
 	if (c == 'A' || c == 'B' || c == 'C' || c == 'D' || c == 'E') {
-		/*if (c == 'A') {
-			colR = 1;
-			colG = 0;
-			colB = 0;
-		}*/
+		
 		model = glm::mat4(1); //Load intentity
 		model = glm::translate(model, glm::vec3(Tx, Ty, Tz));
 		model = glm::scale(model, 2.f * glm::vec3(.1f, .1f, .1f)); //scale example
@@ -620,34 +732,64 @@ void drawObject(int shaderProgram, GLint uniTexID, char c, float Tx, float Ty, f
 
 		glUniformMatrix4fv(uniModel, 1, GL_FALSE, glm::value_ptr(model));
 
+
 		//Set which texture to use (0 = wood texture ... bound to GL_TEXTURE0)
 		glUniform1i(uniTexID, 0);
+		if (c == 'A') {
+			glUniform1i(uniTexID, 21);
+		}
+		if (c == 'B') {
+			glUniform1i(uniTexID, 22);
+		}
+		if (c == 'C') {
+			glUniform1i(uniTexID, 23);
+		}
+		if (c == 'D') {
+			glUniform1i(uniTexID, 24);
+		}
+		if (c == 'E') {
+			glUniform1i(uniTexID, 25);
+		}
 
 		//Draw an instance of the model (at the position & orientation specified by the model matrix above)
 		glDrawArrays(GL_TRIANGLES, startVertCube, numVertsCube); //(Primitive Type, Start Vertex, Num Verticies)
 	}
 
 	//keys
-	if (c == 'a' || c == 'b' || c == 'c' || c == 'd' || c == 'e') { //stands for keys
-		/*if (c == 'a') {
-			colR = 1;
-			colG = 0;
-			colB = 0;
-		}*/
-		//Rotate model (matrix) based on how much time has past
-		model = glm::mat4(1);
-		model = glm::translate(model, glm::vec3(Tx, Ty, Tz));
-		model = glm::rotate(model, timePast * 3.14f / 2, glm::vec3(0.0f, 1.0f, 1.0f));
-		model = glm::rotate(model, timePast * 3.14f / 4, glm::vec3(1.0f, 0.0f, 0.0f));
-		model = glm::scale(model, glm::vec3(.05f, .05f, .05f)); //An example of scale
-		uniModel = glGetUniformLocation(shaderProgram, "model");
-		glUniformMatrix4fv(uniModel, 1, GL_FALSE, glm::value_ptr(model)); //pass model matrix to shader
+	if (c == 'a' || c == 'b' || c == 'c' || c == 'd' || c == 'e' ) { //stands for keys
+		if (playOwnItem[c]) {}
+		else {
 
-		//Set which texture to use (-1 = no texture)
-		glUniform1i(uniTexID, -1);
+			//Rotate model (matrix) based on how much time has past
+			model = glm::mat4(1);
+			model = glm::translate(model, glm::vec3(Tx, Ty, Tz));
+			model = glm::rotate(model, timePast * 3.14f / 2, glm::vec3(0.0f, 1.0f, 1.0f));
+			model = glm::rotate(model, timePast * 3.14f / 4, glm::vec3(1.0f, 0.0f, 0.0f));
+			model = glm::scale(model, glm::vec3(.05f, .05f, .05f)); //An example of scale
+			uniModel = glGetUniformLocation(shaderProgram, "model");
+			glUniformMatrix4fv(uniModel, 1, GL_FALSE, glm::value_ptr(model)); //pass model matrix to shader
 
-		//Draw an instance of the model (at the position & orientation specified by the model matrix above)
-		glDrawArrays(GL_TRIANGLES, startVertCube, numVertsCube); //(Primitive Type, Start Vertex, Num Verticies)
+			//Set which texture to use (-1 = no texture)
+			glUniform1i(uniTexID, -1);
+			if (c == 'a') {
+				glUniform1i(uniTexID, 11);
+			}
+			if (c == 'b') {
+				glUniform1i(uniTexID, 12);
+			}
+			if (c == 'c') {
+				glUniform1i(uniTexID, 13);
+			}
+			if (c == 'd') {
+				glUniform1i(uniTexID, 14);
+			}
+			if (c == 'e') {
+				glUniform1i(uniTexID, 15);
+			}
+
+			//Draw an instance of the model (at the position & orientation specified by the model matrix above)
+			glDrawArrays(GL_TRIANGLES, startVertCube, numVertsCube); //(Primitive Type, Start Vertex, Num Verticies)
+		}
 	}
 
 
@@ -657,30 +799,32 @@ void drawObject(int shaderProgram, GLint uniTexID, char c, float Tx, float Ty, f
 //in this case, model1 will be teapot and model2 will be knot.
 void drawMap(int shaderProgram) {
 
-	GLint uniColor = glGetUniformLocation(shaderProgram, "inColor");
-	glm::vec3 colVec(colR, colG, colB);
-	glUniform3fv(uniColor, 1, glm::value_ptr(colVec));
+	//GLint uniColor = glGetUniformLocation(shaderProgram, "inColor");
+	//glm::vec3 colVec(colR, colG, colB);
+	//glUniform3fv(uniColor, 1, glm::value_ptr(colVec));
 
+	GLint uniColorID = glGetUniformLocation(shaderProgram, "ColorID");
 	GLint uniTexID = glGetUniformLocation(shaderProgram, "texID");
+
 
 
 	//add up lit to the map
 	for (int i = -1; i < mapW + 1; i++) {
-		drawObject(shaderProgram, uniTexID, 'W', 0, i*0.2, 0.2);
+		drawObject(shaderProgram, uniColorID,uniTexID, 'W', 0, i*0.2, 0.2);
 	}
 	//add bot lit 
 	for (int i = -1; i < mapW + 1; i++) {
-		drawObject(shaderProgram, uniTexID, 'W', 0, i * 0.2, -0.2*mapH);
+		drawObject(shaderProgram, uniColorID,uniTexID, 'W', 0, i * 0.2, -0.2*mapH);
 	}
 
 	//left lit
 	for (int j = 0; j < mapH; j++) {
-		drawObject(shaderProgram, uniTexID, 'W', 0, -0.2, -0.2 * j);
+		drawObject(shaderProgram, uniColorID,uniTexID, 'W', 0, -0.2, -0.2 * j);
 	}
 
 	//right lit
 	for (int j = 0; j < mapH; j++) {
-		drawObject(shaderProgram, uniTexID, 'W', 0, 0.2*mapW, -0.2 * j);
+		drawObject(shaderProgram, uniColorID,uniTexID, 'W', 0, 0.2*mapW, -0.2 * j);
 	}
 
 
@@ -698,26 +842,28 @@ void drawMap(int shaderProgram) {
 				StartY = tempY;
 				StartZ = tempZ;
 			}
-
-			drawObject(shaderProgram, uniTexID, mapArray[index], tempX, tempY, tempZ);
-			drawObject(shaderProgram, uniTexID, 'F', tempX-0.2, tempY, tempZ);
+			drawObject(shaderProgram, uniColorID,uniTexID, mapArray[index], tempX, tempY, tempZ);
+			drawObject(shaderProgram, uniColorID,uniTexID, 'F', tempX-0.2, tempY, tempZ);
 			tempY += 0.2;
 		}
 		tempZ -= 0.2;
 	}
 
 
-
-
-	//drawObject(shaderProgram, uniTexID, 'W', 0, 0, 0);
-
-
-	
-	/*drawObject(shaderProgram, uniTexID, "cube", 0, 0, 0);
-	drawObject(shaderProgram, uniTexID, "cube", 0, 0, -0.2);
-	drawObject(shaderProgram, uniTexID, "cube", 0, 0.4, -0.2);
-	drawObject(shaderProgram, uniTexID, "cube", 0, 0.4, -0.4);*/
-
+	//you win square
+	//drawObject(shaderProgram, uniColorID, uniTexID, 'W', 4, 0.1 * mapW, -0.1 * mapH);
+	if (win) {
+		glm::mat4 model = glm::mat4(1);
+		GLint uniModel = glGetUniformLocation(shaderProgram, "model");
+		model = glm::mat4(1); //Load intentity
+		model = glm::translate(model, glm::vec3(0, 0.1 * (mapW-1), -0.1 * (mapH-1)));
+		model = glm::scale(model, 5.f * glm::vec3(.1f, .1f, .1f)); //scale example
+		glUniformMatrix4fv(uniModel, 1, GL_FALSE, glm::value_ptr(model));
+		//Set which texture to use (0 = wood texture ... bound to GL_TEXTURE0)
+		glUniform1i(uniTexID, 3);
+		//Draw an instance of the model (at the position & orientation specified by the model matrix above)
+		glDrawArrays(GL_TRIANGLES, startVertCube, numVertsCube); //(Primitive Type, Start Vertex, Num Verticies)
+	}
 
 
 
