@@ -50,6 +50,7 @@ const char* INSTRUCTIONS =
 
 
 
+
 using namespace std;
 
 int screenWidth = 800;
@@ -68,6 +69,7 @@ float angleSpeed = 0.01;
 float linSpeed = 0.01;
 float playerRadius = .05;
 float pickupRadius = .01;
+float w = 0;
 
 
 bool win = false;
@@ -105,9 +107,11 @@ int numVertsTeapot, numVertsKnot, numVertsCube, numVertsSphere = 0;
 //Store the object coordinates
 //You should have a representation for the state of each object
 float objx = 0, objy = 0, objz = 0;
+float goDirx = 0, goDiry = 1*angleSpeed, goDirz = 0;
 float colR = 1, colG = 1, colB = 1;
+
 float camPosx = 3, camPosy = 0.4, camPosz = -0.4;
-float camDirx = 0, camDiry = 0.4, camDirz = -0.4;
+float camDirx = 0, camDiry = 1, camDirz = -0.8;
 float upx = 1, upy = 0, upz = 0;
 
 
@@ -125,8 +129,8 @@ void drawMap(int shaderProgram);
 void drawObject(int shaderProgram, GLint uniColorID, GLint uniTexID, char c, float Tx, float Ty, float Tz);
 bool isWalkable(float newY, float newZ);
 void checkForEvents(float currentY, float currentZ);
+void updateDir();
 void gameover();
-
 
 
 //--Check if a given position would be okay for the player to move to(ie, not colliding
@@ -135,7 +139,7 @@ void gameover();
 //	--TODO: We end up treating the agent as a square more than a circle...
 //	--        ...this casues us problems with corners. = /
 bool isWalkable(float newY, float newZ) {
-	printf("Y and Z value: %f, %f\n", newY, newZ);
+	//printf("Y and Z value: %f, %f\n", newY, newZ);
 	for (int dz = -1; dz <= 1; dz += 2) {
 		for (int dy = -1; dy <= 1; dy += 2) {
 			float i = (newZ + playerRadius * dz)*5;
@@ -163,12 +167,13 @@ bool isWalkable(float newY, float newZ) {
 //--  so we only check the 8 extreme points of the agent(plus the center).
 //--Note: this assumes pickupRadius < cell size
 void checkForEvents(float currentY, float currentZ) {
+
 	for (int dz = -1; dz <= 1; dz += 2) {
 		for (int dy = -1; dy <= 1; dy += 2) {
 			float i = (currentZ + pickupRadius * dz) * 5;
 			float j = (currentY + pickupRadius * dy) * 5;
 			int index = round(-i) * mapW + round(j);
-			printf("the index is %d \n", index);
+			//printf("the index is %d \n", index);
 			if (round(-i) < 0 || round(-i) >= mapH || round(j) < 0 || round(j) >= mapW) {
 				//out bound, ingore
 			}
@@ -188,10 +193,32 @@ void checkForEvents(float currentY, float currentZ) {
 	
 }
 
+
+void updateDir() {
+	//	//update the camDir by the goDir.
+	goDiry = cos(w) * angleSpeed;
+	goDirz = sin(w) * angleSpeed;
+
+	camDirx = camPosx + goDirx;
+	camDiry = camPosy + goDiry;
+	camDirz = camPosz + goDirz;
+
+	printf("camera postion:\t\t %f,%f,%f\n", camPosx, camPosy, camPosz);
+	printf("camera goDir:\t\t %f,%f,%f\n", goDirx, goDiry, goDirz);
+	printf("camera Dir:\t\t %f,%f,%f\n", camDirx, camDiry, camDirz);
+}
+
 void gameover() {
-	camPosx = 3, camPosy = 0.4, camPosz = -0.4;
-	camDirx = 0, camDiry = 0.4, camDirz = -0.4;
 	win = true;
+	
+	camPosx = 2, camPosy = 0.4, camPosz = -0.4;
+	goDirx = -2, goDiry = 0.0, goDirz = 0.0;
+	camDirx = 0, camDiry = 0.4, camDirz = -0.4;
+	upx = 0, upy = 0, upz = 1;
+	printf("camera postion:\t\t %f,%f,%f\n", camPosx, camPosy, camPosz);
+	printf("camera goDir:\t\t %f,%f,%f\n", goDirx, goDiry, goDirz);
+	printf("camera Dir:\t\t %f,%f,%f\n", camDirx, camDiry, camDirz);
+	
 }
 
 
@@ -510,10 +537,14 @@ int main(int argc, char* argv[]) {
 			camPosx = 0;
 			camPosy = ((i) % 5) * 0.2;
 			camPosz = ((i) / 5) * -0.2;
-			printf("%f, %f, %f \n", camPosx, camPosy, camPosz);
-			camDirx = 0;
-			camDiry = camPosy+0.1;
-			camDirz = camPosz;
+			printf("initial camera postion: \t %f, %f, %f \n", camPosx, camPosy, camPosz);
+			printf("initial go Dir: \t\t %f, %f, %f \n", goDirx , goDiry , goDirz );
+
+			camDirx = camPosx+goDirx ;
+			camDiry = camPosy+goDiry ;
+			camDirz = camPosz+goDirz ;
+			printf("initial camera direction: \t %f, %f, %f \n", camDirx, camDiry, camDirz);
+
 		}
 
 		
@@ -533,8 +564,8 @@ int main(int argc, char* argv[]) {
 	//Event Loop (Loop forever processing each event as fast as possible)
 	SDL_Event windowEvent;
 	bool quit = false;
-	while (!quit) {
-		while (SDL_PollEvent(&windowEvent)) {  //inspect all events in the queue
+	while (!quit ) {
+		while (SDL_PollEvent(&windowEvent) ) {  //inspect all events in the queue
 			if (windowEvent.type == SDL_QUIT) quit = true;
 			//List of keycodes: https://wiki.libsdl.org/SDL_Keycode - You can catch many special keys
 			//Scancode referes to a keyboard position, keycode referes to the letter (e.g., EU keyboards)
@@ -546,9 +577,9 @@ int main(int argc, char* argv[]) {
 			}
 
 			//Fan
-			if (windowEvent.type == SDL_KEYUP && windowEvent.key.keysym.sym == SDLK_v) { //If "v" is pressed, top view mode
+			if (  windowEvent.type == SDL_KEYUP && windowEvent.key.keysym.sym == SDLK_v) { //If "v" is pressed, top view mode
 				topView = !topView;
-				printf("%s", topView ? "true" : "false");
+				printf("top view is %s\n", topView ? "true" : "false");
 				if (topView) {
 					camPosx = 3, camPosy = 0.4, camPosz = -0.4;
 					camDirx = 0, camDiry = 0.4, camDirz = -0.4;
@@ -559,8 +590,8 @@ int main(int argc, char* argv[]) {
 					camPosy = StartY + objy;
 					camPosz = StartZ + objz;
 					camDirx = 0;
-					camDiry = camPosy+0.1;
-					camDirz = camPosz;
+					camDiry = camPosy+goDiry;
+					camDirz = camPosz+goDirz;
 					upx = 1, upy = 0, upz = 0;
 				}
 				
@@ -568,38 +599,85 @@ int main(int argc, char* argv[]) {
 
 			//SJG: Use key input to change the state of the object
 			//     We can use the ".mod" flag to see if modifiers such as shift are pressed
-			if (windowEvent.type == SDL_KEYDOWN && windowEvent.key.keysym.sym == SDLK_UP) { //If "up key" is pressed
+			if (!win && windowEvent.type == SDL_KEYDOWN && windowEvent.key.keysym.sym == SDLK_UP) { //If "up key" is pressed
 				//if (windowEvent.key.keysym.mod & KMOD_SHIFT) objx -= .1; //Is shift pressed?
-				if (isWalkable(StartY + objy, StartZ + objz + linSpeed)) { 
-					objz += linSpeed; 
-					checkForEvents(StartY + objy, StartZ + objz );
+				float newobjY = objy +  goDiry;
+				float newobjZ = objz +  goDirz;
+				if (isWalkable(StartY + newobjY, StartZ + newobjZ)) {
+					objy = newobjY;
+					objz = newobjZ;
+					camPosy = StartY + newobjY;
+					camPosz = StartZ + newobjZ;
+					updateDir();
+					checkForEvents(camPosy, camPosz);
+					
 				}
 				/*camPosx += camDirx * 0.1;
 				camPosy += camDiry * 0.1;
 				camPosz += camDirz * 0.1;*/
 			}
-			if (windowEvent.type == SDL_KEYDOWN && windowEvent.key.keysym.sym == SDLK_DOWN) { //If "down key" is pressed
-				if (isWalkable(StartY + objy, StartZ + objz - linSpeed)) {
-					objz -= linSpeed;
-					checkForEvents(StartY + objy, StartZ + objz);
+			if (!win && windowEvent.type == SDL_KEYDOWN && windowEvent.key.keysym.sym == SDLK_DOWN) { //If "down key" is pressed
+				float newobjY = objy - goDiry;
+				float newobjZ = objz - goDirz;
+				if (isWalkable(StartY + newobjY, StartZ + newobjZ)) {
+					objy = newobjY;
+					objz = newobjZ;
+					camPosy = StartY + newobjY;
+					camPosz = StartZ + newobjZ;
+					updateDir();
+					checkForEvents(camPosy, camPosz);
+					
 				}
 				//if (windowEvent.key.keysym.mod & KMOD_SHIFT) objx += .1; //Is shift pressed?
 				/*camPosx -= camDirx * 0.1;
 				camPosy -= camDiry * 0.1;
 				camPosz -= camDirz * 0.1;*/
 			}
-			if (windowEvent.type == SDL_KEYDOWN && windowEvent.key.keysym.sym == SDLK_LEFT) { //If "left key" is pressed
-				if (isWalkable(StartY + objy - linSpeed, StartZ + objz)) { 
-					objy -= linSpeed; 
-					checkForEvents(StartY + objy , StartZ + objz);
+			if (!win && windowEvent.type == SDL_KEYDOWN && windowEvent.key.keysym.sym == SDLK_LEFT) { //If "left key" is pressed
+				if (windowEvent.key.keysym.mod & KMOD_SHIFT) {
+					float newobjY = objy - goDirz;
+					float newobjZ = objz + goDiry;
+					if (isWalkable(StartY + newobjY, StartZ + newobjZ)) {
+						objy = newobjY;
+						objz = newobjZ;
+						camPosy = StartY + newobjY;
+						camPosz = StartZ + newobjZ;
+						updateDir();
+						checkForEvents(camPosy, camPosz);
+						
+					}
+				}
+				else {
+					w += 000.1; //w is how many degree we rotate from counterclockwise 
+					updateDir();
+					
 				}
 			}
-			if (windowEvent.type == SDL_KEYDOWN && windowEvent.key.keysym.sym == SDLK_RIGHT) { //If "right key" is pressed
-				if (isWalkable(StartY + objy + linSpeed, StartZ + objz)) { 
-					objy += linSpeed; 
-					checkForEvents(StartY + objy , StartZ + objz);
+			if (!win && windowEvent.type == SDL_KEYDOWN && windowEvent.key.keysym.sym == SDLK_RIGHT) { //If "right key" is pressed
+				if (windowEvent.key.keysym.mod & KMOD_SHIFT) {
+					float newobjY = objy + goDirz;
+					float newobjZ = objz - goDiry;
+					if (isWalkable(StartY + newobjY, StartZ + newobjZ)) {
+						objy = newobjY;
+						objz = newobjZ;
+						camPosy = StartY + newobjY;
+						camPosz = StartZ + newobjZ;
+						updateDir();
+						checkForEvents(camPosy, camPosz);
+						
+					}
+				}
+				else {
+					w -= 000.1;
+					updateDir();
 				}
 			}
+
+		
+
+
+
+
 			if (windowEvent.type == SDL_KEYUP && windowEvent.key.keysym.sym == SDLK_c) { //If "c" is pressed
 				colR = rand01();
 				colG = rand01();
@@ -609,6 +687,10 @@ int main(int argc, char* argv[]) {
 		
 
 		}
+
+
+	
+
 
 		// Clear the screen to default color
 		glClearColor(.2f, 0.4f, 0.8f, 1.0f);
@@ -625,7 +707,7 @@ int main(int argc, char* argv[]) {
 			glm::vec3(upx, upy, upz)); //Up
 		glUniformMatrix4fv(uniView, 1, GL_FALSE, glm::value_ptr(view));
 
-		glm::mat4 proj = glm::perspective(3.14f / 4, screenWidth / (float)screenHeight, 0.001f, 30.0f); //FOV, aspect, near, far
+		glm::mat4 proj = glm::perspective(3.14f / 2, screenWidth / (float)screenHeight, 0.001f, 30.0f); //FOV, aspect, near, far
 		glUniformMatrix4fv(uniProj, 1, GL_FALSE, glm::value_ptr(proj));
 
 
@@ -872,7 +954,7 @@ void drawMap(int shaderProgram) {
 		glm::mat4 model = glm::mat4(1);
 		GLint uniModel = glGetUniformLocation(shaderProgram, "model");
 		model = glm::mat4(1); //Load intentity
-		model = glm::translate(model, glm::vec3(0, 0.1 * (mapW-1), -0.1 * (mapH-1)));
+		model = glm::translate(model, glm::vec3(0, 0.1 * (mapW-1), 0.1 * (mapH-1)));
 		model = glm::scale(model, 5.f * glm::vec3(.1f, .1f, .1f)); //scale example
 		glUniformMatrix4fv(uniModel, 1, GL_FALSE, glm::value_ptr(model));
 		//Set which texture to use (0 = wood texture ... bound to GL_TEXTURE0)
