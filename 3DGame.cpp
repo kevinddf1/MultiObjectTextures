@@ -78,6 +78,8 @@ bool win = false;
 //What map symbols corrispond to doors
 map<char, bool> isDoor;
 
+map<char, bool> DoorOpen;
+
 
 //What map symbols corrispond to keys
 map<char, bool> isKey;
@@ -153,6 +155,11 @@ bool isWalkable(float newY, float newZ) {
 			if (isDoor[element] && !playOwnItem[tolower(element)]) {
 				return false;
 			}
+			if (isDoor[element] && playOwnItem[tolower(element)]) {
+				DoorOpen[element] = true;
+				//playOwnItem[tolower(element)] = false;
+				return true;
+			}
 		}
 	}
 	//printf("result is yes, u can walk\n");
@@ -210,14 +217,7 @@ void updateDir() {
 
 void gameover() {
 	win = true;
-	
-	camPosx = 2, camPosy = 0.4, camPosz = -0.4;
-	goDirx = -2, goDiry = 0.0, goDirz = 0.0;
-	camDirx = 0, camDiry = 0.4, camDirz = -0.4;
-	upx = 0, upy = 0, upz = 1;
-	printf("camera postion:\t\t %f,%f,%f\n", camPosx, camPosy, camPosz);
-	printf("camera goDir:\t\t %f,%f,%f\n", goDirx, goDiry, goDirz);
-	printf("camera Dir:\t\t %f,%f,%f\n", camDirx, camDiry, camDirz);
+	topView = true;
 	
 }
 
@@ -229,6 +229,13 @@ int main(int argc, char* argv[]) {
 	isDoor['C'] = true;
 	isDoor['D'] = true;
 	isDoor['E'] = true;
+
+	DoorOpen['A'] = false;
+	DoorOpen['B'] = false;
+	DoorOpen['C'] = false;
+	DoorOpen['D'] = false;
+	DoorOpen['E'] = false;
+
 
 	isKey['a'] = true;
 	isKey['b'] = true;
@@ -356,7 +363,7 @@ int main(int argc, char* argv[]) {
 
 
 	//// Allocate Texture 0 (Wood) ///////
-	SDL_Surface* surface = SDL_LoadBMP("C:/Users/kevin/Desktop/MultiObjectTextures/wood.bmp");
+	SDL_Surface* surface = SDL_LoadBMP("C:/Users/kevin/Desktop/MultiObjectTextures/door5.bmp");
 	if (surface == NULL) { //If it failed, print the error
 		printf("Error: \"%s\"\n", SDL_GetError()); return 1;
 	}
@@ -577,23 +584,10 @@ int main(int argc, char* argv[]) {
 			}
 
 			//Fan
-			if (  windowEvent.type == SDL_KEYUP && windowEvent.key.keysym.sym == SDLK_v) { //If "v" is pressed, top view mode
+			if (  windowEvent.type == SDL_KEYUP && windowEvent.key.keysym.sym == SDLK_h) { //If "v" is pressed, top view mode
 				topView = !topView;
 				printf("top view is %s\n", topView ? "true" : "false");
-				if (topView) {
-					camPosx = 3, camPosy = 0.4, camPosz = -0.4;
-					camDirx = 0, camDiry = 0.4, camDirz = -0.4;
-					upx = 0, upy = 0, upz = 1;
-				}
-				else {
-					camPosx = 0;
-					camPosy = StartY + objy;
-					camPosz = StartZ + objz;
-					camDirx = 0;
-					camDiry = camPosy+goDiry;
-					camDirz = camPosz+goDirz;
-					upx = 1, upy = 0, upz = 0;
-				}
+			
 				
 			}
 
@@ -678,7 +672,7 @@ int main(int argc, char* argv[]) {
 
 
 
-			if (windowEvent.type == SDL_KEYUP && windowEvent.key.keysym.sym == SDLK_c) { //If "c" is pressed
+			if (windowEvent.type == SDL_KEYUP && windowEvent.key.keysym.sym == SDLK_r) { //If "c" is pressed
 				colR = rand01();
 				colG = rand01();
 				colB = rand01();
@@ -700,6 +694,21 @@ int main(int argc, char* argv[]) {
 
 
 		timePast = SDL_GetTicks() / 1000.f;
+
+		if (topView) {
+			camPosx = 2, camPosy = 0.4, camPosz = -0.4;
+			camDirx = 0, camDiry = 0.4, camDirz = -0.4;
+			upx = 0, upy = 0, upz = 1;
+		}
+		else {
+			camPosx = 0;
+			camPosy = StartY + objy;
+			camPosz = StartZ + objz;
+			camDirx = 0;
+			camDiry = camPosy + goDiry;
+			camDirz = camPosz + goDirz;
+			upx = 1, upy = 0, upz = 0;
+		}
 
 		glm::mat4 view = glm::lookAt(
 			glm::vec3(camPosx, camPosy, camPosz),  //Cam Position
@@ -771,6 +780,7 @@ void drawObject(int shaderProgram, GLint uniColorID, GLint uniTexID, char c, flo
 	if (c == 'S' && topView) {
 		model = glm::mat4(1);
 		model = glm::translate(model, glm::vec3(Tx, Ty, Tz));
+		//model = glm::rotate(model,  w, glm::vec3(camPosx, camPosy, camPosz));
 		model = glm::scale(model, glm::vec3(.1f, .1f, .1f)); //scale this model
 		//Translate the model (matrix) based on where objx/y/z is
 		// ... these variables are set when the user presses the arrow keys
@@ -821,41 +831,73 @@ void drawObject(int shaderProgram, GLint uniColorID, GLint uniTexID, char c, flo
 
 	//doors
 	if (c == 'A' || c == 'B' || c == 'C' || c == 'D' || c == 'E') {
-		
-		model = glm::mat4(1); //Load intentity
-		model = glm::translate(model, glm::vec3(Tx, Ty, Tz));
-		model = glm::scale(model, 2.f * glm::vec3(.1f, .1f, .1f)); //scale example
-		
-		uniModel = glGetUniformLocation(shaderProgram, "model");
+		if(DoorOpen[c]){}
+		else {
+			model = glm::mat4(1); //Load intentity
+			model = glm::translate(model, glm::vec3(Tx, Ty, Tz));
+			model = glm::scale(model, 2.f * glm::vec3(.1f, .1f, .1f)); //scale example
 
-		glUniformMatrix4fv(uniModel, 1, GL_FALSE, glm::value_ptr(model));
+			uniModel = glGetUniformLocation(shaderProgram, "model");
+
+			glUniformMatrix4fv(uniModel, 1, GL_FALSE, glm::value_ptr(model));
 
 
-		//Set which texture to use (0 = wood texture ... bound to GL_TEXTURE0)
-		glUniform1i(uniTexID, 0);
-		if (c == 'A') {
-			glUniform1i(uniTexID, 21);
-		}
-		if (c == 'B') {
-			glUniform1i(uniTexID, 22);
-		}
-		if (c == 'C') {
-			glUniform1i(uniTexID, 23);
-		}
-		if (c == 'D') {
-			glUniform1i(uniTexID, 24);
-		}
-		if (c == 'E') {
-			glUniform1i(uniTexID, 25);
-		}
+			//Set which texture to use (0 = wood texture ... bound to GL_TEXTURE0)
+			glUniform1i(uniTexID, 0);
+			if (c == 'A') {
+				glUniform1i(uniTexID, 21);
+			}
+			if (c == 'B') {
+				glUniform1i(uniTexID, 22);
+			}
+			if (c == 'C') {
+				glUniform1i(uniTexID, 23);
+			}
+			if (c == 'D') {
+				glUniform1i(uniTexID, 24);
+			}
+			if (c == 'E') {
+				glUniform1i(uniTexID, 25);
+			}
 
-		//Draw an instance of the model (at the position & orientation specified by the model matrix above)
-		glDrawArrays(GL_TRIANGLES, startVertCube, numVertsCube); //(Primitive Type, Start Vertex, Num Verticies)
+			//Draw an instance of the model (at the position & orientation specified by the model matrix above)
+			glDrawArrays(GL_TRIANGLES, startVertCube, numVertsCube); //(Primitive Type, Start Vertex, Num Verticies)
+		}
 	}
 
 	//keys
 	if (c == 'a' || c == 'b' || c == 'c' || c == 'd' || c == 'e' ) { //stands for keys
-		if (playOwnItem[c]) {}
+		if (playOwnItem[c]) {
+			//Rotate model (matrix) based on how much time has past
+			model = glm::mat4(1);
+			model = glm::translate(model, glm::vec3(camPosx+0.008-0.002*(c-'a'), camPosy+goDiry, camPosz+goDirz));
+			model = glm::rotate(model, timePast * 3.14f / 2, glm::vec3(0.0f, 1.0f, 1.0f));
+			model = glm::rotate(model, timePast * 3.14f / 4, glm::vec3(1.0f, 0.0f, 0.0f));
+			model = glm::scale(model, glm::vec3(.001f, .001f, .001f)); //An example of scale
+			uniModel = glGetUniformLocation(shaderProgram, "model");
+			glUniformMatrix4fv(uniModel, 1, GL_FALSE, glm::value_ptr(model)); //pass model matrix to shader
+
+			//Set which texture to use (-1 = no texture)
+			glUniform1i(uniTexID, -1);
+			if (c == 'a') {
+				glUniform1i(uniTexID, 11);
+			}
+			if (c == 'b') {
+				glUniform1i(uniTexID, 12);
+			}
+			if (c == 'c') {
+				glUniform1i(uniTexID, 13);
+			}
+			if (c == 'd') {
+				glUniform1i(uniTexID, 14);
+			}
+			if (c == 'e') {
+				glUniform1i(uniTexID, 15);
+			}
+
+			//Draw an instance of the model (at the position & orientation specified by the model matrix above)
+			glDrawArrays(GL_TRIANGLES, startVertCube, numVertsCube); //(Primitive Type, Start Vertex, Num Verticies)
+		}
 		else {
 
 			//Rotate model (matrix) based on how much time has past
